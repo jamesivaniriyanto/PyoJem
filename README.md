@@ -22,5 +22,9 @@ Di layar lebar (960px ke atas) navigasi bawah berganti menjadi sidebar.
 
 ## Data
 
-Data contoh Oktober 2026 dimuat saat pertama dibuka. Semua perubahan disimpan di `localStorage` browser,
-jadi hanya ada di perangkat itu. Untuk kembali ke data contoh: Pengaturan › Kembalikan data contoh.
+Pyojem punya database sendiri: IndexedDB bernama `pyojem-keuangan` (tabel `rumahTangga`), terpisah dari
+aplikasi lain walaupun di-host di domain yang sama. Database ini baru dan tidak mengambil data dari aplikasi lain.
+Saat pertama dibuka, isinya data contoh Oktober 2026; semua perubahan disimpan di sana, hanya di perangkat itu.
+Jika browser tidak mendukung IndexedDB, aplikasi memakai cadangan `localStorage` dengan kunci `pyojem-keuangan:cadangan`.
+
+Untuk kembali ke data contoh: Pengaturan › Kembalikan data contoh.

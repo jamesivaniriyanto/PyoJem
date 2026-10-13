@@ -167,15 +167,40 @@ function seed() {
 const HIST = { '2026-05': [23.8e6, 18.9e6], '2026-06': [24.1e6, 21.4e6], '2026-07': [26.3e6, 19.7e6], '2026-08': [24.9e6, 22.8e6], '2026-09': [25.2e6, 20.1e6] };
 const NW_HIST = [['2026-05', 178.6e6], ['2026-06', 184.2e6], ['2026-07', 190.9e6], ['2026-08', 196.4e6], ['2026-09', 203.1e6]];
 
-/* ---------- penyimpanan ---------- */
-const KEY = 'pyojem-keuangan.v1';
-function load() { try { const s = JSON.parse(localStorage.getItem(KEY)); return s && s.v === 1 ? s : null; } catch { return null; } }
-function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch { /* mode privat */ } }
-let S = load() || seed();
+/* ---------- penyimpanan: database IndexedDB khusus Pyojem ----------
+   Database sendiri bernama 'pyojem-keuangan', terpisah dari aplikasi lain di domain yang sama.
+   Tidak membaca atau menulis data milik aplikasi lain. */
+const DB_NAME = 'pyojem-keuangan', DB_VERSION = 1, DB_STORE = 'rumahTangga', DB_KEY = 'utama';
+const FALLBACK_KEY = 'pyojem-keuangan:cadangan'; // hanya dipakai jika IndexedDB tidak tersedia
+let db = null;
+function openDb() {
+  return new Promise((res, rej) => {
+    if (!window.indexedDB) return rej(new Error('IndexedDB tidak tersedia'));
+    const r = indexedDB.open(DB_NAME, DB_VERSION);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains(DB_STORE)) r.result.createObjectStore(DB_STORE); };
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+    r.onblocked = () => rej(new Error('Database sedang dipakai tab lain'));
+  });
+}
+const valid = s => (s && s.v === 1 ? s : null);
+async function load() {
+  try {
+    db = await openDb();
+    return valid(await new Promise((res, rej) => { const q = db.transaction(DB_STORE).objectStore(DB_STORE).get(DB_KEY); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }));
+  } catch {
+    db = null;
+    try { return valid(JSON.parse(localStorage.getItem(FALLBACK_KEY))); } catch { return null; }
+  }
+}
+function save() {
+  if (db) { try { db.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).put(S, DB_KEY); return; } catch { /* lanjut ke cadangan */ } }
+  try { localStorage.setItem(FALLBACK_KEY, JSON.stringify(S)); } catch { /* mode privat */ }
+}
+let S = null;
 
 /* ---------- state UI ---------- */
 const ui = { route: '', prevRoute: '', sheet: null, toast: null, newId: null, draft: null, month: mkey(today()), f: { q: '', kind: 'all', by: 'all', w: 'all', cat: 'all' }, rptMonth: mkey(today()) };
-if (!S.txs.some(t => mkey(t.d) === ui.month)) { const last = S.txs.map(t => mkey(t.d)).sort().pop(); if (last) ui.month = ui.rptMonth = last; }
 
 /* ---------- selektor ---------- */
 const W = id => S.wallets.find(w => w.id === id);
@@ -732,7 +757,7 @@ V.pengaturan = () => {
       <button class="it" style="width:100%;background:none;border:0;cursor:pointer;text-align:left" data-act="askReset">${ic('trash')}<span class="t">Kembalikan data contoh</span><span class="c">Hapus perubahan</span>${ic('right')}</button>
     </section>
     <button type="button" class="btn d" data-act="logout">${ic('logout')}Keluar</button>
-    <div class="c" style="text-align:center">Pyojem Keuangan versi 1.0 · data tersimpan di browser ini</div>
+    <div class="c" style="text-align:center">Pyojem Keuangan versi 1.0 · ${db ? 'database pyojem-keuangan di browser ini' : 'penyimpanan cadangan browser'}</div>
   </main></div>`;
 };
 
@@ -789,6 +814,7 @@ const parseNum = v => parseInt(String(v || '').replace(/[^\d]/g, ''), 10) || 0;
 const NAV = [['beranda', 'home', 'Beranda'], ['transaksi', 'list', 'Transaksi'], ['anggaran', 'pie', 'Anggaran'], ['dompet', 'wallet', 'Dompet'], ['tagihan', 'bill', 'Tagihan'], ['tujuan', 'target', 'Tujuan'], ['utang', 'debt', 'Utang'], ['aset', 'asset', 'Aset'], ['laporan', 'report', 'Laporan'], ['pengaturan', 'settings', 'Pengaturan']];
 const MORE = ['lainnya', 'dompet', 'tagihan', 'tujuan', 'utang', 'aset', 'laporan', 'pengaturan'];
 function render(keepScroll) {
+  if (!S) return;
   const [r, arg] = ui.route.split('/');
   const root = $('#app');
   if (!S.loggedIn) { root.innerHTML = V.login(); root.className = ''; applyTheme(); return; }
@@ -820,7 +846,7 @@ function toast(text, undo) {
   ui.tm = setTimeout(() => { ui.toast = null; ui.newId = null; const t = $('#toast'); if (t) t.innerHTML = ''; }, 4500);
 }
 function go(route) { if (location.hash !== '#/' + route) location.hash = '#/' + route; else render(); }
-window.addEventListener('hashchange', () => { ui.route = location.hash.replace(/^#\/?/, '') || 'beranda'; if (ui.route.startsWith('tambah') && !ui.draft) ui.draft = newDraft(); ui.sheet = null; render(); window.scrollTo(0, 0); });
+window.addEventListener('hashchange', () => { if (!S) return; ui.route = location.hash.replace(/^#\/?/, '') || 'beranda'; if (ui.route.startsWith('tambah') && !ui.draft) ui.draft = newDraft(); ui.sheet = null; render(); window.scrollTo(0, 0); });
 
 /* ---------- aksi ---------- */
 const A = {
@@ -941,6 +967,10 @@ document.addEventListener('keydown', e => {
   }
 });
 
-ui.route = location.hash.replace(/^#\/?/, '') || 'beranda';
-if (ui.route.startsWith('tambah')) ui.draft = newDraft();
-render();
+(async () => {
+  S = (await load()) || seed();
+  if (!S.txs.some(t => mkey(t.d) === ui.month)) { const last = S.txs.map(t => mkey(t.d)).sort().pop(); if (last) ui.month = ui.rptMonth = last; }
+  ui.route = location.hash.replace(/^#\/?/, '') || 'beranda';
+  if (ui.route.startsWith('tambah')) ui.draft = newDraft();
+  render();
+})();
