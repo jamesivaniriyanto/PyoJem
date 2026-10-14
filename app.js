@@ -155,10 +155,10 @@ V.loading = () => `<div class="login" style="text-align:center">${brandHead('Seb
 V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Terjadi kesalahan.'))}
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
-/* Tombol pasang aplikasi, hanya di HP/tablet dan hanya jika belum dipasang. */
+/* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
+const VERSI = '1.4';
 let installEvt = null;
-const isPhone = () => matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
-const canInstall = () => !isStandalone() && isPhone();
+const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
   ? 'Di Safari, ketuk tombol <b>Bagikan</b> (kotak dengan panah ke atas), lalu pilih <b>Tambah ke Layar Utama</b>.'
   : 'Buka menu browser (titik tiga di pojok kanan atas), lalu pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.'} Setelah itu buka Pyojem dari ikon di layar utama.</div></div>` : '');
@@ -182,6 +182,7 @@ V.login = () => {
     <button type="submit" class="btn p">Masuk</button>
   </form>
   <div class="pasang" style="display:flex;flex-direction:column;gap:10px">${installBox()}</div>
+  <div class="c" style="text-align:center;opacity:.7">Versi ${VERSI}</div>
   <div class="c" style="text-align:center">Mode lokal: data hanya tersimpan di browser ini. Isi <b>config.js</b> dengan project Supabase agar bisa dipakai berdua.</div>
 </div>`;
   const daftar = ui.authMode === 'daftar';
@@ -200,6 +201,7 @@ V.login = () => {
     <button type="submit" class="btn p">${daftar ? 'Daftar' : 'Masuk'}</button>
   </form>
   <div class="pasang" style="display:flex;flex-direction:column;gap:10px">${installBox()}</div>
+  <div class="c" style="text-align:center;opacity:.7">Versi ${VERSI}</div>
   <div class="c" style="text-align:center;display:flex;gap:6px;justify-content:center;align-items:center">${ic('lock', 'width:14px;height:14px')}Data rumah tangga hanya terlihat oleh kalian berdua</div>
 </div>`;
 };
@@ -754,7 +756,7 @@ V.pengaturan = () => {
       ${CLOUD ? '' : btnRow('askReset', 'trash', 'Kembalikan data contoh', 'Hapus perubahan')}
     </section>
     <button type="button" class="btn d" data-act="logout">${ic('logout')}Keluar</button>
-    <div class="c" style="text-align:center">Pyojem Keuangan versi 1.3</div>
+    <div class="c" style="text-align:center">Pyojem Keuangan versi ${VERSI}</div>
   </main></div>`;
 };
 
