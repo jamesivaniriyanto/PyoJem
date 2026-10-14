@@ -156,7 +156,7 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
 /* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
-const VERSI = '1.6';
+const VERSI = '1.7';
 let installEvt = null;
 const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
@@ -207,9 +207,16 @@ V.login = () => {
 };
 
 V.onboard = () => `<div class="login" style="justify-content:flex-start;gap:16px">
-  ${brandHead('Satu langkah lagi', 'Buat rumah tangga baru, atau gabung dengan kode undangan dari pasanganmu.')}
+  ${brandHead('Satu langkah lagi', 'Pasanganmu sudah memakai Pyojem? Gabung dengan kode undangannya. Kalau belum, buat rumah tangga baru.')}
+  <form class="card cardpad" data-submit="joinHh">
+    <h2 class="h2">Gabung dengan kode undangan</h2>
+    <div class="c">Kode ada di HP pasanganmu: Lainnya › Pengaturan › Undangan.</div>
+    <div><label class="lab" for="kode">Kode dari pasanganmu</label><div class="field"><input id="kode" name="kode" placeholder="7F3A9C21" autocomplete="off" style="text-transform:uppercase;letter-spacing:.1em" required></div></div>
+    <button class="btn p" type="submit">Gabung</button>
+  </form>
   <form class="card cardpad" data-submit="createHh">
     <h2 class="h2">Buat rumah tangga baru</h2>
+    <div class="c">Hanya untuk orang pertama. Pasangan cukup gabung dengan kode, jangan membuat lagi.</div>
     <div><label class="lab" for="hh">Nama rumah tangga</label><div class="field"><input id="hh" name="nama" value="Rumah tangga James dan Sabrina" maxlength="80" required></div></div>
     <div class="grid2">
       <div><label class="lab" for="nj">Nama beruang</label><div class="field"><input id="nj" name="nama_j" value="James" maxlength="40" required></div></div>
@@ -217,12 +224,7 @@ V.onboard = () => `<div class="login" style="justify-content:flex-start;gap:16px
     </div>
     <div><span class="lab">Kamu yang mana?</span><div class="seg">${['j', 's'].map((o, i) => `<label style="display:contents"><input type="radio" name="kode" value="${o}" class="sr"${i === 0 ? ' checked' : ''}><button type="button" class="${i === 0 ? 'on' : ''}" data-act="radioSeg">${av(o, 22)}${o === 'j' ? 'Beruang' : 'Kelinci'}</button></label>`).join('')}</div></div>
     <label class="row s" style="gap:10px;cursor:pointer"><input type="checkbox" name="contoh" value="1" style="width:20px;height:20px">Isi dengan data contoh Oktober 2026 untuk mencoba</label>
-    <button class="btn p" type="submit">${ic('plus')}Buat rumah tangga</button>
-  </form>
-  <form class="card cardpad" data-submit="joinHh">
-    <h2 class="h2">Gabung dengan kode undangan</h2>
-    <div><label class="lab" for="kode">Kode dari pasanganmu</label><div class="field"><input id="kode" name="kode" placeholder="7F3A9C21" autocomplete="off" style="text-transform:uppercase;letter-spacing:.1em" required></div></div>
-    <button class="btn s" type="submit">Gabung</button>
+    <button class="btn s" type="submit">${ic('plus')}Buat rumah tangga</button>
   </form>
   <div id="msg" class="s" role="status" style="color:var(--exp);font-weight:700;text-align:center"></div>
   <button class="lnk" style="align-self:center" data-act="logout">Keluar dari ${esc(session?.user?.email || 'akun ini')}</button>
@@ -244,10 +246,6 @@ V.beranda = () => {
     <a class="ib" href="#/tagihan" aria-label="Tagihan">${ic('bell')}${bill ? '<span style="position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--exp);box-shadow:0 0 0 2px var(--bg)"></span>' : ''}</a>
   </header>
   <main class="pad">
-    ${CLOUD && !S.partnerJoined ? `<section class="card cardpad" style="border:2px dashed var(--priF)">
-      <div class="row">${av(other(), 40)}<div class="grow"><div class="b">Undang ${esc(WHO[other()])}</div><div class="c">Minta ${esc(WHO[other()])} mendaftar di aplikasi ini, lalu pilih “Gabung dengan kode undangan”.</div></div></div>
-      <div class="row"><b class="disp grow" style="font-size:26px;letter-spacing:.14em">${esc(S.invite)}</b><button class="btn s sm" style="width:auto" data-act="copyInvite">${ic('copy')}Salin kode</button></div>
-    </section>` : ''}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;align-items:start">
     <div style="display:flex;flex-direction:column;gap:16px">
     <section class="hero">
@@ -738,8 +736,8 @@ V.pengaturan = () => {
       <div class="grow"><div class="b">${esc(S.hhName)}</div><div class="c">${CLOUD ? `${S.partnerJoined ? '2 anggota' : 'Menunggu ' + esc(WHO[other()])} · masuk sebagai ${esc(WHO[me()])} (${esc(session?.user?.email || '')})` : `Mode lokal · masuk sebagai ${esc(WHO[me()])}`}</div></div>
       ${CLOUD ? '' : `<button class="btn s sm" style="width:auto" data-act="switchUser">Ganti ke ${esc(WHO[other()])}</button>`}</section>
     ${CLOUD ? `<div class="lbl">Undangan</div>
-    <section class="card cardpad"><div class="c">${S.partnerJoined ? 'Kalian berdua sudah tergabung.' : `Bagikan kode ini ke ${esc(WHO[other()])}. Setelah mendaftar, pilih “Gabung dengan kode undangan”.`}</div>
-      <div class="row"><b class="disp grow" style="font-size:24px;letter-spacing:.14em">${esc(S.invite)}</b><button class="btn s sm" style="width:auto" data-act="copyInvite">${ic('copy')}Salin</button></div></section>` : ''}
+    <section class="card cardpad">${S.partnerJoined ? '<div class="c">Kalian berdua sudah tergabung.</div>' : `<div class="c">Bagikan kode ini ke ${esc(WHO[other()])}. Setelah mendaftar, pilih “Gabung dengan kode undangan”.</div>
+      <div class="row"><b class="disp grow" style="font-size:24px;letter-spacing:.14em">${esc(S.invite)}</b><button class="btn s sm" style="width:auto" data-act="copyInvite">${ic('copy')}Salin</button></div>`}</section>` : ''}
     <div class="lbl">Tampilan</div>
     <section class="card cardpad"><div class="c">Tema (khusus perangkat ini)</div>
       <div class="seg" role="radiogroup" aria-label="Tema">${[['light', 'Terang'], ['dark', 'Gelap'], ['auto', 'Ikuti HP']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${theme === k}" class="${theme === k ? 'on' : ''}" data-act="theme" data-k="${k}">${l}</button>`).join('')}</div></section>
