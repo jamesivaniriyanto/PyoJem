@@ -115,6 +115,7 @@ function newTx(fields) {
   const at = nowIso();
   const t = { id: uid(), note: '', tags: [], comments: [], del: null, shared: false, ...fields, hist: [{ id: uid(), by: me(), what: 'mencatat transaksi ini', at }] };
   S.txs.push(t); P.put('tx', t); P.put('hist', t.hist[0], t.id);
+  if (t.k !== 'trf') notifyPartner(t.id);
   return t;
 }
 function addHist(t, what) { const h = { id: uid(), by: me(), what, at: nowIso() }; t.hist.unshift(h); P.put('hist', h, t.id); }
@@ -154,6 +155,19 @@ V.loading = () => `<div class="login" style="text-align:center">${brandHead('Seb
 V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Terjadi kesalahan.'))}
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
+/* Tombol pasang aplikasi, hanya di HP/tablet dan hanya jika belum dipasang. */
+let installEvt = null;
+const installBox = () => {
+  if (isStandalone() || !matchMedia('(pointer: coarse)').matches) return '';
+  const help = isIos() ? 'Di Safari, ketuk tombol <b>Bagikan</b> (kotak dengan panah ke atas), lalu pilih <b>Tambah ke Layar Utama</b>.'
+    : 'Buka menu browser (titik tiga di pojok kanan atas), lalu pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.';
+  return `<button type="button" class="btn s" data-act="install">${ic('download')}Pasang aplikasi di HP</button>
+    ${ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${help} Setelah itu buka Pyojem dari ikon di layar utama.</div></div>` : ''}`;
+};
+const refreshInstall = () => { const el = $('#pasang'); if (el) el.innerHTML = installBox(); };
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; refreshInstall(); });
+window.addEventListener('appinstalled', () => { installEvt = null; ui.installHelp = false; refreshInstall(); });
+
 V.login = () => {
   if (!CLOUD) return `<div class="login">${brandHead('Halo lagi, yuk masuk', 'Catat bersama, rencanakan bersama. Satu rumah tangga, dua HP.')}
   <form data-submit="loginLocal" style="display:flex;flex-direction:column;gap:14px">
@@ -163,6 +177,7 @@ V.login = () => {
       </div></div>
     <button type="submit" class="btn p">Masuk</button>
   </form>
+  <div id="pasang" style="display:flex;flex-direction:column;gap:10px">${installBox()}</div>
   <div class="c" style="text-align:center">Mode lokal: data hanya tersimpan di browser ini. Isi <b>config.js</b> dengan project Supabase agar bisa dipakai berdua.</div>
 </div>`;
   const daftar = ui.authMode === 'daftar';
@@ -180,6 +195,7 @@ V.login = () => {
     <div id="msg" class="s" role="status" style="color:var(--exp);font-weight:700">${esc(ui.authMsg)}</div>
     <button type="submit" class="btn p">${daftar ? 'Daftar' : 'Masuk'}</button>
   </form>
+  <div id="pasang" style="display:flex;flex-direction:column;gap:10px">${installBox()}</div>
   <div class="c" style="text-align:center;display:flex;gap:6px;justify-content:center;align-items:center">${ic('lock', 'width:14px;height:14px')}Data rumah tangga hanya terlihat oleh kalian berdua</div>
 </div>`;
 };
@@ -687,6 +703,26 @@ V.laporan = () => {
   </main></div>`;
 };
 
+/* Status notifikasi push di perangkat ini (diperbarui setelah layar Pengaturan tampil). */
+const PUSH_TEXT = {
+  on: ['Notifikasi aktif di HP ini', 'Kamu akan diberi tahu saat pasangan mencatat pemasukan atau pengeluaran.'],
+  off: ['Notifikasi di HP ini mati', 'Aktifkan supaya catatan baru dari pasangan langsung muncul di HP.'],
+  denied: ['Izin notifikasi ditolak', 'Izinkan notifikasi untuk Pyojem di pengaturan browser atau HP, lalu buka layar ini lagi.'],
+  install: ['Pasang aplikasi dulu', 'Di iPhone, notifikasi hanya bisa untuk aplikasi yang sudah dipasang: Safari › Bagikan › Tambah ke Layar Utama, lalu buka Pyojem dari ikonnya.'],
+  unsupported: ['Notifikasi tidak didukung', 'Browser ini belum mendukung notifikasi push. Coba Chrome di Android atau aplikasi yang sudah dipasang di iPhone.'],
+  wait: ['Memeriksa notifikasi…', '']
+};
+const pushRow = () => {
+  const st = ui.push || 'wait', [t, sub] = PUSH_TEXT[st];
+  const btn = st === 'on' ? '<button type="button" class="btn s sm" style="width:auto" data-act="pushOff">Matikan</button>'
+    : st === 'off' ? `<button type="button" class="btn p sm" style="width:auto" data-act="pushOn">${ic('bell')}Aktifkan</button>` : '';
+  return `<div class="it"><div class="grow"><div class="t">${t}</div><div class="c">${sub}</div></div>${btn}</div>`;
+};
+async function refreshPush() {
+  try { ui.push = await pushState(); } catch { ui.push = 'unsupported'; }
+  const el = $('#pushrow'); if (el) el.innerHTML = pushRow();
+}
+
 V.pengaturan = () => {
   const n = S.notif, tog = (k, t, sub) => `<div class="it"><div class="grow"><div class="t">${t}</div><div class="c">${sub}</div></div><button type="button" class="tog${n[k] ? ' on' : ''}" role="switch" aria-checked="${!!n[k]}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`;
   const theme = getTheme(), btnRow = (act, icn, t, v) => `<button class="it" style="width:100%;background:none;border:0;cursor:pointer;text-align:left" data-act="${act}">${ic(icn)}<span class="t">${t}</span><span class="c">${v}</span>${ic('right')}</button>`;
@@ -702,7 +738,8 @@ V.pengaturan = () => {
     <section class="card cardpad"><div class="c">Tema (khusus perangkat ini)</div>
       <div class="seg" role="radiogroup" aria-label="Tema">${[['light', 'Terang'], ['dark', 'Gelap'], ['auto', 'Ikuti HP']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${theme === k}" class="${theme === k ? 'on' : ''}" data-act="theme" data-k="${k}">${l}</button>`).join('')}</div></section>
     <div class="lbl">Notifikasi</div>
-    <section class="card">${tog('big', 'Pengeluaran besar', 'Beri tahu pasangan jika satu transaksi di atas Rp1.000.000')}${tog('bill', 'Pengingat tagihan', '3 hari sebelum jatuh tempo, pukul 08.00')}${tog('budget', 'Anggaran hampir habis', 'Saat kategori mencapai 80%')}${tog('partner', 'Catatan baru dari pasangan', 'Ringkasan sekali sehari, pukul 20.00')}</section>
+    ${CLOUD ? `<section class="card" id="pushrow">${pushRow()}</section>` : ''}
+    <section class="card">${tog('partner', 'Pemasukan dan pengeluaran dari pasangan', 'Langsung muncul di HP setiap kali pasangan mencatat')}${tog('big', 'Pengeluaran besar', 'Beri tahu pasangan jika satu transaksi di atas Rp1.000.000')}${tog('bill', 'Pengingat tagihan', '3 hari sebelum jatuh tempo, pukul 08.00')}${tog('budget', 'Anggaran hampir habis', 'Saat kategori mencapai 80%')}</section>
     <div class="lbl">Uang pribadi</div>
     <section class="card">${tog('secret', 'Rahasiakan rincian dompet pribadi', 'Pasangan hanya melihat total, bukan tiap transaksi')}</section>
     <div class="lbl">Data</div>
@@ -713,7 +750,7 @@ V.pengaturan = () => {
       ${CLOUD ? '' : btnRow('askReset', 'trash', 'Kembalikan data contoh', 'Hapus perubahan')}
     </section>
     <button type="button" class="btn d" data-act="logout">${ic('logout')}Keluar</button>
-    <div class="c" style="text-align:center">Pyojem Keuangan versi 1.1</div>
+    <div class="c" style="text-align:center">Pyojem Keuangan versi 1.2</div>
   </main></div>`;
 };
 
@@ -799,6 +836,7 @@ function render(keepScroll) {
     <div id="toast">${toastHtml()}</div>`;
   ui.prevRoute = ui.route;
   if (keepScroll) window.scrollTo(0, y);
+  if (r === 'pengaturan' && CLOUD) refreshPush();
 }
 const toastHtml = () => (ui.toast ? `<div class="toast" role="status"><img src="assets/maskot.png" alt=""><span class="grow">${esc(ui.toast.text)}</span>${ui.toast.undo ? '<button type="button" data-act="undo">Urungkan</button>' : ''}</div>` : '');
 function toast(text, undo) {
@@ -835,10 +873,27 @@ async function syncRemote() {
   if (ui.sheet || ui.route.startsWith('tambah') || typing()) { ui.pending = true; return; }
   ui.pending = false;
   await writeQ;
-  try { const s = await loadCloud(); if (s && ui.phase === 'app') { S = s; applyNames(); render(true); } }
+  const known = new Set(S.txs.map(t => t.id));
+  try { const s = await loadCloud(); if (s && ui.phase === 'app') { S = s; applyNames(); render(true); announce(S.txs.filter(t => !known.has(t.id))); } }
   catch (e) { console.error(e); ui.pending = true; }
 }
 setInterval(() => { if (ui.pending) syncRemote(); }, 3000);
+/* Catatan baru dari pasangan: toast jika aplikasi sedang dilihat, notifikasi jika di latar belakang.
+   Notifikasi memakai tag yang sama dengan push dari server, jadi tidak muncul dobel. */
+const wantNotify = t => S.notif.partner !== false || (S.notif.big !== false && t.k === 'exp' && t.n >= 1e6);
+function announce(list) {
+  const fresh = list.filter(t => t.by !== me() && !t.del && t.k !== 'trf');
+  if (!fresh.length) return;
+  if (document.visibilityState === 'visible') {
+    const t = fresh[fresh.length - 1];
+    toast(`${WHO[t.by]} mencatat ${t.t} ${sg(t.k, t.n)}${fresh.length > 1 ? ` dan ${fresh.length - 1} lainnya` : ''}`);
+    return;
+  }
+  if (!pushSupported() || Notification.permission !== 'granted') return;
+  navigator.serviceWorker.getRegistration().then(reg => fresh.filter(wantNotify).slice(-3).forEach(t => reg?.showNotification(
+    `${WHO[t.by]} mencatat ${t.k === 'exp' ? (t.n >= 1e6 ? 'pengeluaran besar' : 'pengeluaran') : 'pemasukan'}`,
+    { body: `${t.t} · ${sg(t.k, t.n)}`, tag: 'tx-' + t.id, icon: 'assets/ikon-192.png', badge: 'assets/ikon-192.png', data: { url: './#/detail/' + t.id } })));
+}
 function onWriteError(err) {
   const msg = /row-level security|permission/i.test(err?.message || '') ? 'Tidak punya izin menyimpan.' : 'Gagal menyimpan ke server.';
   toast(msg + ' Data dimuat ulang.');
@@ -923,9 +978,27 @@ const A = {
   remind: d => { const x = S.debts.find(y => y.id === d.id); toast(`Pengingat untuk ${x.n} dicatat`); },
   tog: d => { S.notif[d.k] = !S.notif[d.k]; P.settings(); render(true); },
   theme: d => { setTheme(d.k); render(true); },
+  install: async () => {
+    if (!installEvt) { ui.installHelp = !ui.installHelp; refreshInstall(); return; }
+    const e = installEvt; installEvt = null;
+    try { await e.prompt(); await e.userChoice; } catch (err) { console.error(err); }
+    refreshInstall();
+  },
+  pushOn: async (d, el) => {
+    el.disabled = true;
+    try {
+      const r = await enablePush();
+      if (r === 'granted') {
+        if (S.notif.partner === false) { S.notif.partner = true; P.settings(); render(true); }
+        toast('Notifikasi aktif. Catatan pasangan akan muncul di HP ini.');
+      } else toast('Izin notifikasi tidak diberikan');
+    } catch (e) { console.error(e); toast('Gagal mengaktifkan notifikasi. Periksa koneksi lalu coba lagi.'); }
+    refreshPush();
+  },
+  pushOff: async (d, el) => { el.disabled = true; try { await disablePush(); toast('Notifikasi di HP ini dimatikan'); } catch (e) { console.error(e); } refreshPush(); },
   switchUser: () => { S.user = other(); saveLocalSoon(); render(true); toast(`Sekarang mencatat sebagai ${WHO[me()]}`); },
   logout: async () => {
-    if (CLOUD) { unsubscribeCloud(); ui.phase = 'login'; try { await sb.auth.signOut(); } catch { /* tetap keluar di perangkat ini */ } S = null; HH_ID = null; ui.authMsg = ''; }
+    if (CLOUD) { unsubscribeCloud(); ui.phase = 'login'; try { await disablePush(); } catch { /* lanjut keluar */ } try { await sb.auth.signOut(); } catch { /* tetap keluar di perangkat ini */ } S = null; HH_ID = null; ui.authMsg = ''; }
     else { S.loggedIn = false; saveLocalSoon(); ui.phase = 'login'; }
     location.hash = '#/beranda'; render();
   },
@@ -1035,6 +1108,7 @@ function isSecretKey(k) {
   try { return JSON.parse(atob(k.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role === 'service_role'; } catch { return false; }
 }
 (async () => {
+  registerSw();
   ui.route = parseRoute();
   render();
   if (CLOUD) {

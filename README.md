@@ -11,8 +11,10 @@ Tidak perlu build: cukup HTML, CSS, dan JavaScript biasa.
 - `app.js`: seluruh layar dan logika aplikasi
 - `styles.css`: tema pastel ceria (terang, gelap, ikuti HP)
 - `icons.js`: ikon garis dari desain
-- `assets/`: maskot, avatar, dan gambar lain dari desain
-- `supabase/migrations/`: skema database Supabase (tabel, keamanan, fungsi undangan)
+- `assets/`: maskot, avatar, ikon aplikasi, dan gambar lain dari desain
+- `manifest.webmanifest` dan `sw.js`: supaya bisa dipasang di HP, cadangan offline, dan notifikasi push
+- `supabase/migrations/`: skema database Supabase (tabel, keamanan, fungsi undangan, langganan notifikasi)
+- `supabase/functions/kirim-notifikasi/`: Edge Function yang mengirim notifikasi push ke HP pasangan
 
 ## Layar
 
@@ -59,6 +61,26 @@ Project ini khusus Pyojem dan terpisah dari project aplikasi lain.
 
 Aplikasi perlu dibuka lewat `https://` (misalnya GitHub Pages: Settings › Pages › Deploy from branch `main`)
 supaya login dan tautan konfirmasi email berjalan.
+
+## Pasang di HP dan notifikasi
+
+**Pasang aplikasi.** Di layar masuk (khusus HP/tablet, dan hanya jika belum terpasang) ada tombol
+**Pasang aplikasi di HP**. Di Chrome Android tombol ini membuka dialog pasang bawaan; di iPhone atau browser lain
+tombol ini menampilkan langkahnya (Safari › Bagikan › Tambah ke Layar Utama). Setelah dipasang, Pyojem terbuka
+dari ikon di layar utama seperti aplikasi biasa, dengan tampilan HP (navigasi bawah). Di layar lebar tetap
+tampil sebagai dashboard dengan sidebar.
+
+**Notifikasi.** Buka **Pengaturan › Notifikasi**, lalu ketuk **Aktifkan** di tiap HP. Setelah itu, setiap kali
+pasangan mencatat pemasukan atau pengeluaran, HP kamu menerima notifikasi (walaupun aplikasi sedang ditutup).
+Ketuk notifikasinya untuk membuka detail transaksi.
+
+- Sakelar **Pemasukan dan pengeluaran dari pasangan** mengatur notifikasi tiap catatan; jika dimatikan,
+  hanya **Pengeluaran besar** (di atas Rp1.000.000) yang tetap diberitahukan.
+- Di iPhone (iOS 16.4 ke atas) notifikasi hanya bisa untuk aplikasi yang sudah dipasang ke layar utama.
+- Hanya untuk mode Supabase. Notifikasi dikirim lewat Edge Function `kirim-notifikasi`; kunci VAPID dibuat
+  otomatis saat pertama dipakai dan disimpan di tabel `kunci_vapid` yang tidak bisa dibaca aplikasi.
+- Memasang dari nol: jalankan juga `supabase/migrations/20261014120000_pyojem_notifikasi.sql`, lalu
+  `supabase functions deploy kirim-notifikasi`.
 
 ## Preferensi perangkat
 
