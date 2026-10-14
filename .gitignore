@@ -1,0 +1,4 @@
+# File lokal yang tidak perlu disimpan di repo
+node_modules/
+.wrangler/
+.DS_Store
