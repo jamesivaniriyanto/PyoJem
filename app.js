@@ -156,7 +156,7 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
 /* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
-const VERSI = '1.5';
+const VERSI = '1.6';
 let installEvt = null;
 const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
@@ -819,6 +819,7 @@ function render(keepScroll) {
   if (ui.phase !== 'app' || !S) {
     root.className = '';
     root.innerHTML = (ui.phase === 'login' && (CLOUD || S)) ? V.login() : ui.phase === 'onboard' ? V.onboard() : ui.phase === 'error' ? V.error() : V.loading();
+    syncHistory();
     return;
   }
   recompute();
@@ -843,6 +844,7 @@ function render(keepScroll) {
   ui.prevRoute = ui.route;
   if (keepScroll) window.scrollTo(0, y);
   if (r === 'pengaturan' && CLOUD) refreshPush();
+  syncHistory();
 }
 const toastHtml = () => (ui.toast ? `<div class="toast" role="status"><img src="assets/maskot.png" alt=""><span class="grow">${esc(ui.toast.text)}</span>${ui.toast.undo ? '<button type="button" data-act="undo">Urungkan</button>' : ''}</div>` : '');
 function toast(text, undo) {
@@ -851,11 +853,13 @@ function toast(text, undo) {
   ui.tm = setTimeout(() => { ui.toast = null; ui.newId = null; const t = $('#toast'); if (t) t.innerHTML = ''; }, 4500);
 }
 /* ---------- navigasi ala aplikasi ----------
-   Riwayat browser dijaga tetap dua entri: penjaga di bawah dan layar sekarang di atas.
-   Tombol back HP mendarat di penjaga, lalu aplikasi sendiri yang memutuskan tujuannya:
-   tutup lembar yang terbuka, kembali ke layar asal, pindah ke Beranda, atau keluar dari Beranda. */
+   Jumlah entri riwayat browser disamakan dengan jumlah langkah back di dalam aplikasi:
+   tutup lembar → layar sebelumnya → … → Beranda. Di Beranda tidak ada entri tersisa,
+   jadi back berikutnya ditangani HP sendiri, yaitu keluar dari aplikasi.
+   Entri hanya ditambah saat ada sentuhan/tombol, karena Chrome melewati entri yang
+   dibuat tanpa interaksi (akibatnya back langsung keluar). */
 const TABS = ['beranda', 'transaksi', 'anggaran', 'lainnya'];
-const nav = { stack: [], armed: false };
+const nav = { stack: [], pos: 0, jalan: false };
 function parentOf(route) {
   const [r, arg] = route.split('/');
   if (r === 'beranda') return null;
@@ -882,7 +886,7 @@ function go(route) {
   }
   show(route);
 }
-// Mengembalikan false jika sudah di Beranda dan tidak ada yang bisa ditutup (saatnya keluar).
+// Mengembalikan false jika sudah di Beranda dan tidak ada yang bisa ditutup.
 function goBack() {
   if (ui.phase !== 'app') return false;
   if (ui.sheet) { A.closeSheet(); return true; }
@@ -894,15 +898,33 @@ function goBack() {
   show(p);
   return true;
 }
-// Entri penjaga baru dipasang setelah ada sentuhan, karena Chrome melewati entri yang dibuat tanpa interaksi.
-function arm() { if (nav.armed || ui.phase !== 'app') return; nav.armed = true; history.pushState({ pyo: 'atas' }, '', location.hash); }
-['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, arm, { capture: true, passive: true }));
-window.addEventListener('popstate', () => {
-  if (history.state?.pyo !== 'jaga') return; // maju lagi ke layar atas, tidak perlu apa-apa
-  nav.armed = false;
-  history.replaceState(history.state, '', '#/' + ui.route); // supaya hashchange dari entri penjaga tidak ikut berpindah layar
-  if (goBack()) arm(); else history.back();
+// Berapa kali back bisa ditekan sebelum keluar dari aplikasi.
+function backSteps() {
+  if (ui.phase !== 'app' || !S) return 0;
+  let n = (ui.sheet ? 1 : 0) + nav.stack.length, r = nav.stack.length ? nav.stack[0].r : ui.route;
+  for (let i = 0; i < 5 && (r = parentOf(r)); i++) n++;
+  return n;
+}
+// Dipanggil setiap render: tambah atau kurangi entri riwayat agar sama dengan backSteps().
+function syncHistory() {
+  if (nav.jalan) return;
+  const want = backSteps();
+  if (want < nav.pos) { nav.jalan = true; history.go(want - nav.pos); return; }
+  if (want > nav.pos && navigator.userActivation?.isActive !== false) {
+    while (nav.pos < want) history.pushState({ pyo: ++nav.pos }, '', location.hash);
+  }
+}
+window.addEventListener('popstate', e => {
+  const pos = typeof e.state?.pyo === 'number' ? e.state.pyo : 0;
+  history.replaceState({ pyo: pos }, '', '#/' + ui.route); // supaya hashchange dari entri lama tidak ikut berpindah layar
+  const n = nav.pos - pos;
+  nav.pos = pos;
+  if (nav.jalan) nav.jalan = false; // mundur yang dilakukan aplikasi sendiri
+  else for (let i = 0; i < n && goBack(); i++); // tombol back HP
+  syncHistory();
 });
+// Dibuka langsung ke sub-halaman: entri riwayat baru bisa dipasang setelah sentuhan pertama.
+document.addEventListener('click', () => syncHistory());
 const parseRoute = () => location.hash.replace(/^#\/?/, '') || 'beranda';
 // Alamat diubah manual (atau dari notifikasi): perlakukan seperti membuka layar baru.
 window.addEventListener('hashchange', () => { const r = parseRoute(); if (r !== ui.route) go(r); });
@@ -1171,7 +1193,8 @@ function isSecretKey(k) {
 (async () => {
   registerSw();
   ui.route = parseRoute();
-  history.replaceState({ pyo: 'jaga' }, '', '#/' + ui.route);
+  nav.pos = typeof history.state?.pyo === 'number' ? history.state.pyo : 0;
+  history.replaceState({ pyo: nav.pos }, '', '#/' + ui.route);
   render();
   if (CLOUD) {
     if (isSecretKey(CFG.supabaseAnonKey)) { ui.err = 'config.js berisi kunci rahasia (service_role/secret). Ganti dengan anon/publishable key, lalu cabut kunci rahasia itu di Supabase.'; ui.phase = 'error'; render(); return; }
