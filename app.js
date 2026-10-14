@@ -136,7 +136,7 @@ function txRow(t, withTime) {
   </a>`;
 }
 const topBar = (title, opts = {}) => `<header class="top">
-  ${opts.back ? `<a class="ib" href="${opts.back}" aria-label="Kembali">${ic('left')}</a>` : ''}
+  ${opts.back ? `<a class="ib" href="${opts.back}" data-back aria-label="Kembali">${ic('left')}</a>` : ''}
   <h1 class="${opts.center ? 'center' : ''}">${title}</h1>${opts.right || ''}</header>`;
 const empty = (title, sub, extra = '') => `<div class="empty"><img class="mascot" src="assets/maskot.png" alt=""><div class="h2">${title}</div><div class="s">${sub}</div>${extra}</div>`;
 const monthNav = (act, k) => `<div class="row" style="gap:4px;justify-content:space-between;padding:0 12px">
@@ -156,7 +156,7 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
 /* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
-const VERSI = '1.4';
+const VERSI = '1.5';
 let installEvt = null;
 const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
@@ -850,14 +850,62 @@ function toast(text, undo) {
   const el = $('#toast'); if (el) el.innerHTML = toastHtml();
   ui.tm = setTimeout(() => { ui.toast = null; ui.newId = null; const t = $('#toast'); if (t) t.innerHTML = ''; }, 4500);
 }
-function go(route) { if (location.hash !== '#/' + route) location.hash = '#/' + route; else render(); }
-const parseRoute = () => location.hash.replace(/^#\/?/, '') || 'beranda';
-window.addEventListener('hashchange', () => {
-  ui.route = parseRoute(); ui.sheet = null;
-  if (!ui.route.startsWith('tambah')) ui.draft = null;
-  render(); window.scrollTo(0, 0);
+/* ---------- navigasi ala aplikasi ----------
+   Riwayat browser dijaga tetap dua entri: penjaga di bawah dan layar sekarang di atas.
+   Tombol back HP mendarat di penjaga, lalu aplikasi sendiri yang memutuskan tujuannya:
+   tutup lembar yang terbuka, kembali ke layar asal, pindah ke Beranda, atau keluar dari Beranda. */
+const TABS = ['beranda', 'transaksi', 'anggaran', 'lainnya'];
+const nav = { stack: [], armed: false };
+function parentOf(route) {
+  const [r, arg] = route.split('/');
+  if (r === 'beranda') return null;
+  if (TABS.includes(r)) return 'beranda';
+  if (r === 'detail') return S?.txs.find(t => t.id === arg)?.del ? 'sampah' : 'transaksi';
+  if (r === 'sampah') return 'transaksi';
+  if (r === 'tambah') return ui.draft?.editId ? 'detail/' + ui.draft.editId : 'beranda';
+  return 'lainnya';
+}
+function show(route, y) {
+  ui.route = route; ui.sheet = null;
+  if (!route.startsWith('tambah')) ui.draft = null;
+  history.replaceState(history.state, '', '#/' + route);
+  render(); window.scrollTo(0, y || 0);
   if (ui.pending) syncRemote();
+}
+function go(route) {
+  if (route === ui.route) { render(); return; }
+  if (TABS.includes(route)) nav.stack = route === 'beranda' ? [] : [{ r: 'beranda', y: 0 }];
+  else {
+    const i = nav.stack.findIndex(s => s.r === route);
+    if (i >= 0) nav.stack.length = i;
+    else nav.stack.push({ r: ui.route, y: window.scrollY });
+  }
+  show(route);
+}
+// Mengembalikan false jika sudah di Beranda dan tidak ada yang bisa ditutup (saatnya keluar).
+function goBack() {
+  if (ui.phase !== 'app') return false;
+  if (ui.sheet) { A.closeSheet(); return true; }
+  const prev = nav.stack.pop();
+  if (prev) { show(prev.r, prev.y); return true; }
+  const p = parentOf(ui.route);
+  if (!p) return false;
+  nav.stack = TABS.includes(p) && p !== 'beranda' ? [{ r: 'beranda', y: 0 }] : [];
+  show(p);
+  return true;
+}
+// Entri penjaga baru dipasang setelah ada sentuhan, karena Chrome melewati entri yang dibuat tanpa interaksi.
+function arm() { if (nav.armed || ui.phase !== 'app') return; nav.armed = true; history.pushState({ pyo: 'atas' }, '', location.hash); }
+['pointerdown', 'keydown'].forEach(t => document.addEventListener(t, arm, { capture: true, passive: true }));
+window.addEventListener('popstate', () => {
+  if (history.state?.pyo !== 'jaga') return; // maju lagi ke layar atas, tidak perlu apa-apa
+  nav.armed = false;
+  history.replaceState(history.state, '', '#/' + ui.route); // supaya hashchange dari entri penjaga tidak ikut berpindah layar
+  if (goBack()) arm(); else history.back();
 });
+const parseRoute = () => location.hash.replace(/^#\/?/, '') || 'beranda';
+// Alamat diubah manual (atau dari notifikasi): perlakukan seperti membuka layar baru.
+window.addEventListener('hashchange', () => { const r = parseRoute(); if (r !== ui.route) go(r); });
 const setMsg = text => { const m = $('#msg'); if (m) m.textContent = text; };
 const busy = (form, on) => form?.querySelectorAll('button, input').forEach(b => { b.disabled = on; });
 
@@ -1006,7 +1054,7 @@ const A = {
   logout: async () => {
     if (CLOUD) { unsubscribeCloud(); ui.phase = 'login'; try { await disablePush(); } catch { /* lanjut keluar */ } try { await sb.auth.signOut(); } catch { /* tetap keluar di perangkat ini */ } S = null; HH_ID = null; ui.authMsg = ''; }
     else { S.loggedIn = false; saveLocalSoon(); ui.phase = 'login'; }
-    location.hash = '#/beranda'; render();
+    nav.stack = []; ui.route = 'beranda'; history.replaceState(history.state, '', '#/beranda'); render();
   },
   askReset: () => { ui.sheet = { s: 'confirm', title: 'Kembalikan data contoh?', text: 'Semua transaksi, dompet, dan pengaturan yang kamu ubah di perangkat ini akan diganti dengan data contoh.', ok: 'Kembalikan', act: 'doReset' }; render(true); },
   doReset: () => { const u = S.user; S = seed(); S.user = u; S.loggedIn = true; applyNames(); initMonth(); ui.sheet = null; saveLocalSoon(); toast('Data contoh dikembalikan'); go('beranda'); },
@@ -1025,7 +1073,7 @@ function download(name, text) {
 }
 const closeWith = text => { ui.sheet = null; toast(text); render(true); };
 const SUBMIT = {
-  loginLocal: () => { S.loggedIn = true; saveLocalSoon(); ui.phase = 'app'; location.hash = '#/beranda'; render(); },
+  loginLocal: () => { S.loggedIn = true; saveLocalSoon(); ui.phase = 'app'; nav.stack = []; show('beranda'); },
   auth: async (f, el) => {
     const email = String(f.get('email')).trim(), password = String(f.get('sandi'));
     const daftar = ui.authMode === 'daftar';
@@ -1084,6 +1132,13 @@ document.addEventListener('click', e => {
   if (el.tagName === 'BUTTON') e.preventDefault();
   fn(el.dataset, el, e);
 });
+// Tautan di dalam aplikasi tidak menambah riwayat browser.
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#/"]'); if (!a || e.defaultPrevented || e.ctrlKey || e.metaKey) return;
+  e.preventDefault();
+  if (a.dataset.back !== undefined) { if (!goBack()) go(a.getAttribute('href').slice(2)); return; }
+  go(a.getAttribute('href').slice(2));
+});
 document.addEventListener('submit', e => {
   const el = e.target.closest('[data-submit]'); if (!el) return;
   e.preventDefault(); SUBMIT[el.dataset.submit]?.(new FormData(el), el);
@@ -1116,6 +1171,7 @@ function isSecretKey(k) {
 (async () => {
   registerSw();
   ui.route = parseRoute();
+  history.replaceState({ pyo: 'jaga' }, '', '#/' + ui.route);
   render();
   if (CLOUD) {
     if (isSecretKey(CFG.supabaseAnonKey)) { ui.err = 'config.js berisi kunci rahasia (service_role/secret). Ganti dengan anon/publishable key, lalu cabut kunci rahasia itu di Supabase.'; ui.phase = 'error'; render(); return; }
