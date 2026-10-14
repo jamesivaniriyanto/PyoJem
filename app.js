@@ -159,24 +159,15 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
 let installEvt = null;
 const isPhone = () => matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|mobile/i.test(navigator.userAgent);
 const canInstall = () => !isStandalone() && isPhone();
-const INSTALL_HIDE_KEY = 'pyojem-keuangan:sembunyikan-pasang';
-const installHidden = () => { try { return localStorage.getItem(INSTALL_HIDE_KEY) === '1'; } catch { return false; } };
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
   ? 'Di Safari, ketuk tombol <b>Bagikan</b> (kotak dengan panah ke atas), lalu pilih <b>Tambah ke Layar Utama</b>.'
   : 'Buka menu browser (titik tiga di pojok kanan atas), lalu pilih <b>Instal aplikasi</b> atau <b>Tambahkan ke layar utama</b>.'} Setelah itu buka Pyojem dari ikon di layar utama.</div></div>` : '');
-/* Banner di Beranda: hanya di HP yang belum memasang, bisa disembunyikan. */
-const installBanner = () => (!canInstall() || installHidden() ? '' : `<section class="card cardpad" style="gap:12px">
-  <div class="row" style="gap:12px"><img src="assets/ikon-192.png" alt="" style="width:52px;height:52px;border-radius:14px">
-    <div class="grow"><div class="b">Pasang Pyojem di HP</div><div class="c">Buka dari ikon di layar utama seperti aplikasi biasa, dan terima notifikasi catatan pasangan.</div></div></div>
-  <div class="grid2"><button type="button" class="btn s sm" data-act="hideInstall">Nanti saja</button><button type="button" class="btn p sm" data-act="install">${ic('download')}Pasang</button></div>
-  ${installHelpHtml()}</section>`);
 const installBox = () => {
   if (!canInstall()) return '';
   return `<button type="button" class="btn s" data-act="install">${ic('download')}Pasang aplikasi di HP</button>${installHelpHtml()}`;
 };
 const refreshInstall = () => {
   document.querySelectorAll('.pasang').forEach(el => { el.innerHTML = installBox(); });
-  const b = $('#pasangBanner'); if (b) b.innerHTML = installBanner();
 };
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; refreshInstall(); });
 window.addEventListener('appinstalled', () => { installEvt = null; ui.installHelp = false; refreshInstall(); });
@@ -251,7 +242,6 @@ V.beranda = () => {
     <a class="ib" href="#/tagihan" aria-label="Tagihan">${ic('bell')}${bill ? '<span style="position:absolute;top:10px;right:11px;width:8px;height:8px;border-radius:50%;background:var(--exp);box-shadow:0 0 0 2px var(--bg)"></span>' : ''}</a>
   </header>
   <main class="pad">
-    <div id="pasangBanner">${installBanner()}</div>
     ${CLOUD && !S.partnerJoined ? `<section class="card cardpad" style="border:2px dashed var(--priF)">
       <div class="row">${av(other(), 40)}<div class="grow"><div class="b">Undang ${esc(WHO[other()])}</div><div class="c">Minta ${esc(WHO[other()])} mendaftar di aplikasi ini, lalu pilih “Gabung dengan kode undangan”.</div></div></div>
       <div class="row"><b class="disp grow" style="font-size:26px;letter-spacing:.14em">${esc(S.invite)}</b><button class="btn s sm" style="width:auto" data-act="copyInvite">${ic('copy')}Salin kode</button></div>
@@ -751,7 +741,6 @@ V.pengaturan = () => {
     <div class="lbl">Tampilan</div>
     <section class="card cardpad"><div class="c">Tema (khusus perangkat ini)</div>
       <div class="seg" role="radiogroup" aria-label="Tema">${[['light', 'Terang'], ['dark', 'Gelap'], ['auto', 'Ikuti HP']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${theme === k}" class="${theme === k ? 'on' : ''}" data-act="theme" data-k="${k}">${l}</button>`).join('')}</div></section>
-    ${canInstall() ? `<div class="lbl">Aplikasi</div><section class="card cardpad"><div class="c">Pasang Pyojem ke layar utama HP supaya terbuka seperti aplikasi biasa.</div><div class="pasang" style="display:flex;flex-direction:column;gap:10px">${installBox()}</div></section>` : ''}
     <div class="lbl">Notifikasi</div>
     ${CLOUD ? `<section class="card" id="pushrow">${pushRow()}</section>` : ''}
     <section class="card">${tog('partner', 'Pemasukan dan pengeluaran dari pasangan', 'Langsung muncul di HP setiap kali pasangan mencatat')}${tog('big', 'Pengeluaran besar', 'Beri tahu pasangan jika satu transaksi di atas Rp1.000.000')}${tog('bill', 'Pengingat tagihan', '3 hari sebelum jatuh tempo, pukul 08.00')}${tog('budget', 'Anggaran hampir habis', 'Saat kategori mencapai 80%')}</section>
@@ -993,7 +982,6 @@ const A = {
   remind: d => { const x = S.debts.find(y => y.id === d.id); toast(`Pengingat untuk ${x.n} dicatat`); },
   tog: d => { S.notif[d.k] = !S.notif[d.k]; P.settings(); render(true); },
   theme: d => { setTheme(d.k); render(true); },
-  hideInstall: () => { try { localStorage.setItem(INSTALL_HIDE_KEY, '1'); } catch { /* mode privat */ } refreshInstall(); toast('Tombol pasang tetap ada di Pengaturan'); },
   install: async () => {
     if (!installEvt) { ui.installHelp = !ui.installHelp; refreshInstall(); return; }
     const e = installEvt; installEvt = null;
