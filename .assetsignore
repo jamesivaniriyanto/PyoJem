@@ -1,0 +1,11 @@
+# File yang tidak ikut diterbitkan ke Cloudflare (bukan bagian aplikasi)
+.git
+.github
+.claude
+.gitignore
+.assetsignore
+wrangler.jsonc
+README.md
+supabase
+node_modules
+.wrangler
