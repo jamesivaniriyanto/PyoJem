@@ -7,7 +7,7 @@
 const uid = () => (window.crypto && crypto.randomUUID ? crypto.randomUUID()
   : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random() * 16 | 0; return (c === 'x' ? r : (r & 3 | 8)).toString(16); }));
 const WHO = { j: 'James', s: 'Sabrina', b: 'Bersama' };
-const NOTIF_DEFAULT = { big: true, bill: true, budget: true, partner: false, secret: false };
+const NOTIF_DEFAULT = { big: true, bill: true, budget: true, partner: true, secret: false };
 
 /* ---------- saldo dihitung dari saldo awal + transaksi yang tidak di sampah ---------- */
 function walletEffects(txs) {
@@ -308,3 +308,50 @@ function subscribeCloud() {
   channel.subscribe();
 }
 function unsubscribeCloud() { if (channel) { sb.removeChannel(channel); channel = null; } }
+
+/* ---------- pasang aplikasi dan notifikasi push ---------- */
+const PUSH_FN = 'kirim-notifikasi';
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIos = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const pushSupported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+function registerSw() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').catch(e => console.error('Service worker gagal dipasang', e));
+}
+async function callPush(body) {
+  const { data, error } = await sb.functions.invoke(PUSH_FN, { body });
+  if (error) throw error;
+  return data;
+}
+const b64uBytes = s => { const b = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - s.length % 4) % 4)); return Uint8Array.from(b, c => c.charCodeAt(0)); };
+async function pushSub() {
+  if (!pushSupported()) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+/* 'unsupported' | 'install' (iPhone: pasang dulu) | 'denied' | 'on' | 'off' */
+async function pushState() {
+  if (!CLOUD) return 'unsupported';
+  if (!pushSupported()) return isIos() && !isStandalone() ? 'install' : 'unsupported';
+  if (Notification.permission === 'denied') return 'denied';
+  return Notification.permission === 'granted' && await pushSub() ? 'on' : 'off';
+}
+async function enablePush() {
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return perm;
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64uBytes((await callPush({ aksi: 'kunci' })).kunci) });
+  await callPush({ aksi: 'daftar', langganan: sub.toJSON() });
+  return 'granted';
+}
+async function disablePush() {
+  const sub = await pushSub(); if (!sub) return;
+  try { await callPush({ aksi: 'hapus', endpoint: sub.endpoint }); } catch (e) { console.error(e); }
+  await sub.unsubscribe();
+}
+/* Memberi tahu HP pasangan setelah transaksi baru tersimpan di server. */
+function notifyPartner(txId) {
+  if (!CLOUD) return;
+  writeQ.then(() => callPush({ aksi: 'kirim', transaksi_id: txId })).catch(e => console.error('Notifikasi gagal dikirim', e));
+}
