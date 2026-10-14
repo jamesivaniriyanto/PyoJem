@@ -177,8 +177,8 @@ function saveLocalSoon() { clearTimeout(localSaveTm); localSaveTm = setTimeout(s
 const CFG = window.PYOJEM_CONFIG || {};
 const CLOUD = !!(CFG.supabaseUrl && CFG.supabaseAnonKey);
 const SUPABASE_JS = {
-  src: 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js',
-  integrity: 'sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o'
+  src: 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js',
+  integrity: 'sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok'
 };
 let sb = null, session = null, HH_ID = null, channel = null;
 

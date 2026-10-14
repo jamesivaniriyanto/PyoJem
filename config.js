@@ -5,6 +5,6 @@
    Kunci anon/publishable memang aman dipasang di aplikasi web karena dilindungi Row Level Security.
    JANGAN PERNAH mengisi service_role atau secret key di sini. */
 window.PYOJEM_CONFIG = {
-  supabaseUrl: '',
-  supabaseAnonKey: ''
+  supabaseUrl: 'https://nfqfbhlltjmmyyuogors.supabase.co',
+  supabaseAnonKey: 'sb_publishable_wbCJdTT6J6M8SG1MSgu1cA_9Xx0pwC1'
 };

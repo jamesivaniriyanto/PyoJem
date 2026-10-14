@@ -34,7 +34,13 @@ masuk dengan akun masing-masing, melihat data yang sama, dan perubahan dari HP p
 - Transaksi yang dihapus masuk **Sampah** dulu dan bisa dikembalikan oleh siapa pun dari kalian berdua.
   Hapus permanen hanya lewat Sampah, dengan konfirmasi.
 
-## Memasang Supabase
+## Project Supabase Pyojem
+
+Aplikasi ini sudah tersambung ke project Supabase **pyojem-keuangan** (region Singapura,
+`https://nfqfbhlltjmmyyuogors.supabase.co`). Skema dari `supabase/migrations/` sudah terpasang di sana.
+Project ini khusus Pyojem dan terpisah dari project aplikasi lain.
+
+## Memasang Supabase dari nol
 
 1. Buat project **baru** di [supabase.com](https://supabase.com), misalnya `pyojem-keuangan`.
    Jangan memakai project milik aplikasi lain.
