@@ -62,6 +62,10 @@ Project ini khusus Pyojem dan terpisah dari project aplikasi lain.
 Aplikasi perlu dibuka lewat `https://` (misalnya GitHub Pages: Settings › Pages › Deploy from branch `main`)
 supaya login dan tautan konfirmasi email berjalan.
 
+Pyojem diterbitkan ke Cloudflare Workers (`pyojem-keuangan`). Cloudflare membangun otomatis dari branch **`main`**
+(Workers › pyojem-keuangan › Settings › Build › Branch control), jadi setiap perubahan yang digabung ke `main`
+langsung terbit.
+
 ## Pasang di HP dan notifikasi
 
 **Pasang aplikasi.** Di layar masuk (selama belum dipasang) ada tombol
