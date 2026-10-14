@@ -64,7 +64,7 @@ supaya login dan tautan konfirmasi email berjalan.
 
 ## Pasang di HP dan notifikasi
 
-**Pasang aplikasi.** Di layar masuk (khusus HP/tablet yang belum memasang) ada tombol
+**Pasang aplikasi.** Di layar masuk (selama belum dipasang) ada tombol
 **Pasang aplikasi di HP**. Di Chrome Android tombol ini membuka dialog pasang bawaan; di iPhone atau browser lain
 tombol ini menampilkan langkahnya (Safari › Bagikan › Tambah ke Layar Utama). Setelah dipasang, Pyojem terbuka
 dari ikon di layar utama seperti aplikasi biasa, dengan tampilan HP (navigasi bawah). Di layar lebar tetap
