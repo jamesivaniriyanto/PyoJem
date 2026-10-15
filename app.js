@@ -73,9 +73,6 @@ const ui = {
   authMode: 'masuk', authMsg: '', month: mkey(today()), rptMonth: mkey(today()),
   f: { q: '', kind: 'all', by: 'all', w: 'all', cat: 'all' }
 };
-const THEME_KEY = 'pyojem-keuangan:tema';
-const getTheme = () => { try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch { return 'auto'; } };
-const setTheme = v => { try { localStorage.setItem(THEME_KEY, v); } catch { /* mode privat */ } };
 function applyNames() { WHO.j = S.names.j; WHO.s = S.names.s; }
 function initMonth() {
   ui.month = ui.rptMonth = mkey(today());
@@ -487,7 +484,7 @@ V.lainnya = () => {
     ['Aset dan kekayaan', 'asset', 'aset', `Bersih ${jt(netWorth().net)}`, '', '#DDF1FE'],
     ['Laporan', 'report', 'laporan', monthName(ui.month), '', '#FFE0E6'],
     ['Sampah', 'trash', 'sampah', `${trash} transaksi`, '', '#FFF3CC'],
-    ['Pengaturan', 'settings', 'pengaturan', 'Tema, notifikasi, akun', '', '#E2F5EA']
+    ['Pengaturan', 'settings', 'pengaturan', 'Notifikasi, akun, data', '', '#E2F5EA']
   ];
   return `<div class="screen">
   <header class="hero" style="margin:16px 16px 12px;flex-direction:row;align-items:center;min-height:104px;padding:16px 20px">
@@ -729,7 +726,7 @@ async function refreshPush() {
 
 V.pengaturan = () => {
   const n = S.notif, tog = (k, t, sub) => `<div class="it"><div class="grow"><div class="t">${t}</div><div class="c">${sub}</div></div><button type="button" class="tog${n[k] ? ' on' : ''}" role="switch" aria-checked="${!!n[k]}" aria-label="${t}" data-act="tog" data-k="${k}"></button></div>`;
-  const theme = getTheme(), btnRow = (act, icn, t, v) => `<button class="it" style="width:100%;background:none;border:0;cursor:pointer;text-align:left" data-act="${act}">${ic(icn)}<span class="t">${t}</span><span class="c">${v}</span>${ic('right')}</button>`;
+  const btnRow = (act, icn, t, v) => `<button class="it" style="width:100%;background:none;border:0;cursor:pointer;text-align:left" data-act="${act}">${ic(icn)}<span class="t">${t}</span><span class="c">${v}</span>${ic('right')}</button>`;
   return `<div class="screen">${topBar('Pengaturan', { back: '#/lainnya' })}
   <main class="pad">
     <section class="card" style="padding:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div class="avs">${av('j', 44)}${av('s', 44)}</div>
@@ -738,9 +735,6 @@ V.pengaturan = () => {
     ${CLOUD ? `<div class="lbl">Undangan</div>
     <section class="card cardpad">${S.partnerJoined ? '<div class="c">Kalian berdua sudah tergabung.</div>' : `<div class="c">Bagikan kode ini ke ${esc(WHO[other()])}. Setelah mendaftar, pilih “Gabung dengan kode undangan”.</div>
       <div class="row"><b class="disp grow" style="font-size:24px;letter-spacing:.14em">${esc(S.invite)}</b><button class="btn s sm" style="width:auto" data-act="copyInvite">${ic('copy')}Salin</button></div>`}</section>` : ''}
-    <div class="lbl">Tampilan</div>
-    <section class="card cardpad"><div class="c">Tema (khusus perangkat ini)</div>
-      <div class="seg" role="radiogroup" aria-label="Tema">${[['light', 'Terang'], ['dark', 'Gelap'], ['auto', 'Ikuti HP']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${theme === k}" class="${theme === k ? 'on' : ''}" data-act="theme" data-k="${k}">${l}</button>`).join('')}</div></section>
     <div class="lbl">Notifikasi</div>
     ${CLOUD ? `<section class="card" id="pushrow">${pushRow()}</section>` : ''}
     <section class="card">${tog('partner', 'Pemasukan dan pengeluaran dari pasangan', 'Langsung muncul di HP setiap kali pasangan mencatat')}${tog('big', 'Pengeluaran besar', 'Beri tahu pasangan jika satu transaksi di atas Rp1.000.000')}${tog('bill', 'Pengingat tagihan', '3 hari sebelum jatuh tempo, pukul 08.00')}${tog('budget', 'Anggaran hampir habis', 'Saat kategori mencapai 80%')}</section>
@@ -810,9 +804,7 @@ const SH = {
 /* ---------- render ---------- */
 const NAV = [['beranda', 'home', 'Beranda'], ['transaksi', 'list', 'Transaksi'], ['anggaran', 'pie', 'Anggaran'], ['dompet', 'wallet', 'Dompet'], ['tagihan', 'bill', 'Tagihan'], ['tujuan', 'target', 'Tujuan'], ['utang', 'debt', 'Utang'], ['aset', 'asset', 'Aset'], ['laporan', 'report', 'Laporan'], ['sampah', 'trash', 'Sampah'], ['pengaturan', 'settings', 'Pengaturan']];
 const MORE = ['lainnya', 'dompet', 'tagihan', 'tujuan', 'utang', 'aset', 'laporan', 'pengaturan', 'sampah'];
-function applyTheme() { const t = getTheme(); if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t; }
 function render(keepScroll) {
-  applyTheme();
   const root = $('#app');
   if (ui.phase !== 'app' || !S) {
     root.className = '';
@@ -1051,7 +1043,6 @@ const A = {
   debtFilter: d => { ui.debtOpen = d.v === '1'; render(true); },
   remind: d => { const x = S.debts.find(y => y.id === d.id); toast(`Pengingat untuk ${x.n} dicatat`); },
   tog: d => { S.notif[d.k] = !S.notif[d.k]; P.settings(); render(true); },
-  theme: d => { setTheme(d.k); render(true); },
   install: async () => {
     if (!installEvt) { ui.installHelp = !ui.installHelp; refreshInstall(); return; }
     const e = installEvt; installEvt = null;

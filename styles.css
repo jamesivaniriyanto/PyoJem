@@ -12,30 +12,6 @@
   --shadow:0 1px 0 rgba(0,51,102,.04),0 8px 22px rgba(0,51,102,.08);
   color-scheme:light;
 }
-:root[data-theme="dark"]{
-  --bg:#0B1E33;--card:#13294A;--card2:#1A3459;--ink:#F5EFE1;--ink2:#C9D6E6;--ink3:#A5B6CC;--line:#26416A;
-  --pri:#87CEFA;--pri2:#B5E2FC;--priS:#1C3E66;--onpri:#003366;
-  --inc:#86DFAE;--incS:#153A2E;--exp:#FF9BB3;--expS:#43213A;--trf:#C2B4FF;--trfS:#2A2856;
-  --warn:#F7D06E;--warnS:#3A3218;
-  --husS:#1C3E66;--wifS:#43213A;--side:#0E2440;--k3:#C9D6E6;--k6:#3A5272;
-  --heroA:#163A63;--heroB:#3D2346;--heroBubble:rgba(255,255,255,.06);--heroTile:rgba(255,255,255,.08);
-  --toast:#F5EFE1;--toastInk:#003366;
-  --shadow:0 0 0 1px #22406A;
-  color-scheme:dark;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]):not([data-theme="dark"]){
-    --bg:#0B1E33;--card:#13294A;--card2:#1A3459;--ink:#F5EFE1;--ink2:#C9D6E6;--ink3:#A5B6CC;--line:#26416A;
-    --pri:#87CEFA;--pri2:#B5E2FC;--priS:#1C3E66;--onpri:#003366;
-    --inc:#86DFAE;--incS:#153A2E;--exp:#FF9BB3;--expS:#43213A;--trf:#C2B4FF;--trfS:#2A2856;
-    --warn:#F7D06E;--warnS:#3A3218;
-    --husS:#1C3E66;--wifS:#43213A;--side:#0E2440;--k3:#C9D6E6;--k6:#3A5272;
-    --heroA:#163A63;--heroB:#3D2346;--heroBubble:rgba(255,255,255,.06);--heroTile:rgba(255,255,255,.08);
-    --toast:#F5EFE1;--toastInk:#003366;
-    --shadow:0 0 0 1px #22406A;
-    color-scheme:dark;
-  }
-}
 
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink)}
@@ -244,7 +220,6 @@ select.chip{appearance:none;-webkit-appearance:none;padding-right:14px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;width:calc(100% - 32px);max-width:480px;background:var(--toast);color:var(--toastInk);border-radius:20px;padding:6px 6px 6px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.2);font-size:14px;font-weight:700;z-index:60;animation:kkToast .5s cubic-bezier(.2,.9,.3,1.35) both}
 .toast img{width:44px;height:auto;margin:-18px 0 -6px 0;animation:kkBob 1.6s ease-in-out infinite}
 .toast button{min-height:44px;padding:0 14px;border:0;border-radius:12px;background:transparent;color:var(--pri);font-weight:800;cursor:pointer}
-:root[data-theme="dark"] .toast button{color:#1F5F9E}
 
 .empty{padding:32px 16px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:8px}
 .empty img{width:160px}
