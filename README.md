@@ -9,7 +9,7 @@ Tidak perlu build: cukup HTML, CSS, dan JavaScript biasa.
 - `config.js`: alamat dan kunci project Supabase (kosong = mode lokal)
 - `data.js`: data contoh, database lokal, dan sambungan ke Supabase
 - `app.js`: seluruh layar dan logika aplikasi
-- `styles.css`: tema pastel ceria (terang, gelap, ikuti HP)
+- `styles.css`: tema pastel ceria (terang)
 - `icons.js`: ikon garis dari desain
 - `assets/`: maskot, avatar, ikon aplikasi, dan gambar lain dari desain
 - `manifest.webmanifest` dan `sw.js`: supaya bisa dipasang di HP, cadangan offline, dan notifikasi push
@@ -86,7 +86,6 @@ Ketuk notifikasinya untuk membuka detail transaksi.
 - Memasang dari nol: jalankan juga `supabase/migrations/20261014120000_pyojem_notifikasi.sql`, lalu
   `supabase functions deploy kirim-notifikasi`.
 
-## Preferensi perangkat
+## Sesi perangkat
 
-Pilihan tema disimpan per perangkat di `localStorage` dengan kunci `pyojem-keuangan:tema`.
 Sesi login Supabase disimpan oleh pustaka Supabase di browser.
