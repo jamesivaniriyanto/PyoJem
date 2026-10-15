@@ -50,7 +50,8 @@ Project ini khusus Pyojem dan terpisah dari project aplikasi lain.
    `supabase/migrations/20261013000000_pyojem_awal.sql`, lalu **Run**.
 3. Buka **Authentication › URL Configuration**. Isi **Site URL** dengan alamat aplikasi
    (misalnya `https://jamesivaniriyanto.github.io/PyoJem/`), dan tambahkan alamat yang sama ke **Redirect URLs**.
-   Ini dipakai untuk tautan konfirmasi email.
+   Ini dipakai untuk tautan konfirmasi email. Jika Site URL masih `http://localhost:3000` (bawaan Supabase),
+   tautan di email akan membuka `localhost` dan pasangan tidak bisa melanjutkan ke layar kode undangan.
 4. Buka **Project Settings › API**. Salin **Project URL** dan kunci **anon public** (atau **publishable**),
    lalu isi ke `config.js`. Kunci ini memang boleh ada di aplikasi web.
    **Jangan pernah** memakai kunci `service_role` atau secret; aplikasi akan menolak jalan jika kunci itu terpasang.
@@ -58,6 +59,8 @@ Project ini khusus Pyojem dan terpisah dari project aplikasi lain.
    ingin mencoba dengan data Oktober 2026; tanpa centang, rumah tangga dimulai dengan tiga dompet kosong.
 6. Bagikan kode undangan (ada di Beranda dan Pengaturan) ke pasangan. Pasangan mendaftar dengan emailnya sendiri,
    lalu memilih **Gabung dengan kode undangan**.
+   Jika pasangan terlanjur memilih **Buat rumah tangga baru**, ia bisa membuka **Pengaturan › Punya kode dari
+   pasanganmu?** untuk pindah ke rumah tangga yang benar (butuh `supabase/migrations/20261015000000_pyojem_pindah.sql`).
 
 Aplikasi perlu dibuka lewat `https://` (misalnya GitHub Pages: Settings › Pages › Deploy from branch `main`)
 supaya login dan tautan konfirmasi email berjalan.

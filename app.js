@@ -156,7 +156,7 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
 /* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
-const VERSI = '1.7';
+const VERSI = '1.8';
 let installEvt = null;
 const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
@@ -737,7 +737,14 @@ V.pengaturan = () => {
       ${CLOUD ? '' : `<button class="btn s sm" style="width:auto" data-act="switchUser">Ganti ke ${esc(WHO[other()])}</button>`}</section>
     ${CLOUD ? `<div class="lbl">Undangan</div>
     <section class="card cardpad">${S.partnerJoined ? '<div class="c">Kalian berdua sudah tergabung.</div>' : `<div class="c">Bagikan kode ini ke ${esc(WHO[other()])}. Setelah mendaftar, pilih “Gabung dengan kode undangan”.</div>
-      <div class="row"><b class="disp grow" style="font-size:24px;letter-spacing:.14em">${esc(S.invite)}</b><button class="btn s sm" style="width:auto" data-act="copyInvite">${ic('copy')}Salin</button></div>`}</section>` : ''}
+      <div class="row"><b class="disp grow" style="font-size:24px;letter-spacing:.14em">${esc(S.invite)}</b><button class="btn s sm" style="width:auto" data-act="copyInvite">${ic('copy')}Salin</button></div>`}</section>
+    ${S.partnerJoined ? '' : `<form class="card cardpad" data-submit="moveHh">
+      <h2 class="h2">Punya kode dari pasanganmu?</h2>
+      <div class="c">Kalau pasanganmu yang lebih dulu membuat rumah tangga, masukkan kodenya di sini untuk pindah ke rumah tangganya. Rumah tangga di akun ini beserta isinya akan dihapus.</div>
+      <div><label class="lab" for="kodepindah">Kode dari pasanganmu</label><div class="field"><input id="kodepindah" name="kode" placeholder="7F3A9C21" autocomplete="off" style="text-transform:uppercase;letter-spacing:.1em" required></div></div>
+      <div id="msg" class="s" role="status" style="color:var(--exp);font-weight:700"></div>
+      <button class="btn p" type="submit">Pindah dan gabung</button>
+    </form>`}` : ''}
     <div class="lbl">Tampilan</div>
     <section class="card cardpad"><div class="c">Tema (khusus perangkat ini)</div>
       <div class="seg" role="radiogroup" aria-label="Tema">${[['light', 'Terang'], ['dark', 'Gelap'], ['auto', 'Ikuti HP']].map(([k, l]) => `<button type="button" role="radio" aria-checked="${theme === k}" class="${theme === k ? 'on' : ''}" data-act="theme" data-k="${k}">${l}</button>`).join('')}</div></section>
@@ -1103,7 +1110,7 @@ const SUBMIT = {
       : await sb.auth.signInWithPassword({ email, password });
     busy(el, false);
     if (res.error) { ui.authMsg = authError(res.error); setMsg(ui.authMsg); return; }
-    if (!res.data.session) { ui.authMode = 'masuk'; ui.authMsg = 'Akun dibuat. Buka email konfirmasi dari Supabase, lalu masuk di sini.'; render(); return; }
+    if (!res.data.session) { ui.authMode = 'masuk'; ui.authMsg = 'Akun dibuat. Ketuk tautan di email konfirmasi, lalu kembali ke sini dan masuk dengan email dan kata sandi tadi.'; render(); return; }
     session = res.data.session; ui.authMsg = ''; await enterCloud();
   },
   createHh: async (f, el) => {
@@ -1121,6 +1128,15 @@ const SUBMIT = {
     const { error } = await sb.rpc('gabung_rumah_tangga', { p_kode_undangan: String(f.get('kode')).trim() });
     if (error) { busy(el, false); setMsg(error.message); return; }
     await enterCloud();
+  },
+  moveHh: async (f, el) => {
+    if (!confirm('Pindah ke rumah tangga pasangan? Rumah tangga di akun ini beserta semua isinya akan dihapus.')) return;
+    busy(el, true); setMsg('');
+    const { error } = await sb.rpc('pindah_rumah_tangga', { p_kode_undangan: String(f.get('kode')).trim() });
+    if (error) { busy(el, false); setMsg(error.message); return; }
+    unsubscribeCloud(); nav.stack = []; ui.route = 'beranda';
+    await enterCloud();
+    toast('Sudah tergabung dengan pasanganmu');
   },
   comment: (f, el) => { const t = S.txs.find(x => x.id === el.dataset.id); const text = String(f.get('text')).trim(); if (!t || !text) return; const c = { id: uid(), by: me(), text, at: nowIso() }; t.comments.push(c); P.put('comment', c, t.id); render(true); },
   budget: f => {
@@ -1184,13 +1200,21 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---------- mulai ---------- */
+/* Sisa tautan konfirmasi email di alamat: ?code=… (PKCE) atau #error=… dari Supabase. */
+function readAuthUrl() {
+  const q = new URLSearchParams(location.search), h = new URLSearchParams(location.hash.replace(/^#\/?/, ''));
+  const hash = h.has('error') || h.has('error_code') || h.has('access_token');
+  const err = q.get('error_code') || h.get('error_code') || q.get('error') || h.get('error') || '';
+  return { hash, any: hash || q.has('code') || q.has('error'), expired: /expired|invalid|denied/i.test(err) };
+}
 function isSecretKey(k) {
   if (/^sb_secret_/.test(k)) return true;
   try { return JSON.parse(atob(k.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role === 'service_role'; } catch { return false; }
 }
 (async () => {
   registerSw();
-  ui.route = parseRoute();
+  const authUrl = readAuthUrl();
+  ui.route = authUrl.hash ? 'beranda' : parseRoute();
   nav.pos = typeof history.state?.pyo === 'number' ? history.state.pyo : 0;
   history.replaceState({ pyo: nav.pos }, '', '#/' + ui.route);
   render();
@@ -1205,7 +1229,14 @@ function isSecretKey(k) {
     });
     const { data } = await sb.auth.getSession();
     session = data.session;
-    if (session) await enterCloud(); else { ui.phase = 'login'; render(); }
+    if (authUrl.any) history.replaceState(history.state, '', location.pathname + '#/' + ui.route);
+    if (session) await enterCloud();
+    else {
+      // Tautan email dibuka di browser lain (atau sudah kedaluwarsa): sesi tidak bisa dibuat di sini,
+      // tapi email biasanya sudah terkonfirmasi, jadi cukup masuk dengan kata sandi.
+      if (authUrl.any) { ui.authMode = 'masuk'; ui.authMsg = authUrl.expired ? 'Tautan konfirmasi sudah kedaluwarsa atau sudah dipakai. Coba masuk dengan email dan kata sandi; kalau belum bisa, daftar ulang untuk mendapat email baru.' : 'Email sudah dikonfirmasi. Silakan masuk dengan email dan kata sandi.'; }
+      ui.phase = 'login'; render();
+    }
   } else {
     S = (await loadLocal()) || seed();
     applyNames(); initMonth();
