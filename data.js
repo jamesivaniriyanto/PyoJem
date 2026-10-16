@@ -176,23 +176,36 @@ function saveLocalSoon() { clearTimeout(localSaveTm); localSaveTm = setTimeout(s
 /* ---------- Supabase ---------- */
 const CFG = window.PYOJEM_CONFIG || {};
 const CLOUD = !!(CFG.supabaseUrl && CFG.supabaseAnonKey);
-const SUPABASE_JS = {
-  src: 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js',
-  integrity: 'sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok'
-};
+/* Pustaka Supabase disimpan di aplikasi sendiri (vendor/) agar tidak bergantung pada CDN luar
+   yang kadang diblokir atau lambat di jaringan seluler. CDN hanya dipakai sebagai cadangan. */
+const SUPABASE_JS = [
+  { src: 'vendor/supabase-2.117.2.js' },
+  { src: 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js', integrity: 'sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok' }
+];
 let sb = null, session = null, HH_ID = null, channel = null;
 
-function ensureSupabase() {
-  if (window.supabase) return Promise.resolve();
+/* Batas waktu agar layar "Memuat" tidak menggantung selamanya saat jaringan macet. */
+function withTimeout(promise, ms, msg) {
+  let tm;
+  return Promise.race([promise, new Promise((_, rej) => { tm = setTimeout(() => rej(new Error(msg)), ms); })]).finally(() => clearTimeout(tm));
+}
+function loadScript({ src, integrity }) {
   return new Promise((res, rej) => {
     const s = document.createElement('script');
-    s.src = SUPABASE_JS.src; s.integrity = SUPABASE_JS.integrity; s.crossOrigin = 'anonymous';
-    s.onload = () => (window.supabase ? res() : rej(new Error('Pustaka Supabase tidak termuat')));
-    s.onerror = () => rej(new Error('Gagal memuat pustaka Supabase. Periksa koneksi internet.'));
+    s.src = src; if (integrity) { s.integrity = integrity; s.crossOrigin = 'anonymous'; }
+    const tm = setTimeout(() => { s.remove(); rej(new Error('timeout')); }, 15000);
+    s.onload = () => { clearTimeout(tm); window.supabase ? res() : rej(new Error('kosong')); };
+    s.onerror = () => { clearTimeout(tm); s.remove(); rej(new Error('gagal')); };
     document.head.appendChild(s);
   });
 }
-
+async function ensureSupabase() {
+  for (const src of SUPABASE_JS) {
+    if (window.supabase) return;
+    try { await loadScript(src); return; } catch (e) { console.warn('Supabase gagal dimuat dari', src.src, e.message); }
+  }
+  if (!window.supabase) throw new Error('Gagal memuat pustaka Supabase. Periksa koneksi internet.');
+}
 const TBL = { wallet: 'dompet', loan: 'cicilan', goal: 'tujuan', tx: 'transaksi', comment: 'komentar', hist: 'riwayat_transaksi', budget: 'anggaran', bill: 'tagihan', debt: 'utang', asset: 'aset' };
 const ts = v => (v ? String(v).replace(' ', 'T').slice(0, 16) : null);
 const ROW = {

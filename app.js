@@ -153,7 +153,7 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
 /* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
-const VERSI = '1.7';
+const VERSI = '1.8';
 let installEvt = null;
 const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
@@ -925,11 +925,11 @@ const busy = (form, on) => form?.querySelectorAll('button, input').forEach(b => 
 async function enterCloud() {
   ui.phase = 'boot'; render();
   try {
-    const s = await loadCloud();
+    const s = await withTimeout(loadCloud(), 30000, 'Data tidak kunjung termuat. Periksa koneksi internet, lalu coba lagi.');
     if (s) { S = s; applyNames(); initMonth(); ui.phase = 'app'; subscribeCloud(); }
     else ui.phase = 'onboard';
-  } catch (e) { console.error(e); ui.err = e.message || String(e); ui.phase = 'error'; }
-  render();
+    render();
+  } catch (e) { console.error(e); ui.err = e.message || String(e); ui.phase = 'error'; S = null; render(); }
 }
 let remoteTm = null;
 function onRemoteChange() { clearTimeout(remoteTm); remoteTm = setTimeout(syncRemote, 400); }
@@ -980,7 +980,7 @@ const A = {
   pickUser: d => { S.user = d.o; render(); },
   peek: () => { const i = $('#sandi'); i.type = i.type === 'password' ? 'text' : 'password'; },
   authMode: d => { ui.authMode = d.m; ui.authMsg = ''; render(); },
-  retry: () => { if (!CLOUD) location.reload(); else if (session) enterCloud(); else { ui.phase = 'login'; render(); } },
+  retry: () => { if (!CLOUD || !sb) location.reload(); else if (session) enterCloud(); else { ui.phase = 'login'; render(); } },
   month: d => { ui.month = shiftMonth(ui.month, +d.n); render(true); },
   rptMonth: d => { ui.rptMonth = shiftMonth(ui.rptMonth, +d.n); render(true); },
   fkind: d => { ui.f.kind = d.k; render(true); },
@@ -1194,8 +1194,8 @@ function isSecretKey(k) {
       session = sess;
       if (event === 'SIGNED_OUT' && ui.phase !== 'login') { unsubscribeCloud(); S = null; HH_ID = null; ui.phase = 'login'; render(); }
     });
-    const { data } = await sb.auth.getSession();
-    session = data.session;
+    try { session = (await withTimeout(sb.auth.getSession(), 20000, 'Server tidak merespons. Periksa koneksi internet, lalu coba lagi.')).data.session; }
+    catch (e) { ui.err = e.message; ui.phase = 'error'; render(); return; }
     if (session) await enterCloud(); else { ui.phase = 'login'; render(); }
   } else {
     S = (await loadLocal()) || seed();
