@@ -2,8 +2,8 @@
    - Membuat aplikasi bisa dipasang di HP dan tetap terbuka saat sinyal putus (cadangan offline).
    - Menampilkan notifikasi push saat pasangan mencatat pemasukan atau pengeluaran. */
 'use strict';
-const CACHE = 'pyojem-v11';
-const SHELL = ['./', 'index.html', 'styles.css?v=1.10', 'config.js?v=1.10', 'icons.js?v=1.10', 'data.js?v=1.10', 'app.js?v=1.10', 'manifest.webmanifest', 'vendor/supabase-2.117.2.js',
+const CACHE = 'pyojem-v12';
+const SHELL = ['./', 'styles.css?v=1.11', 'config.js?v=1.11', 'icons.js?v=1.11', 'data.js?v=1.11', 'app.js?v=1.11', 'manifest.webmanifest', 'vendor/supabase-2.117.2.js',
   'assets/maskot.png', 'assets/avatar-bersama.png', 'assets/ikon-192.png'];
 
 self.addEventListener('install', e => {
@@ -13,29 +13,23 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
-/* File aplikasi: ambil versi terbaru dari jaringan dulu. Jika jaringan tidak menjawab dalam
-   beberapa detik (sinyal lemah atau situs lambat), pakai salinan tersimpan agar aplikasi tidak
-   tertahan di layar memuat; salinan diperbarui di latar belakang begitu jaringan menjawab.
+/* File aplikasi: buka langsung dari salinan tersimpan, tanpa menunggu internet, lalu perbarui
+   salinan di latar belakang. Jaringan seluler kadang mulai menjawab lalu macet di tengah pengiriman;
+   jika aplikasi menunggu jaringan, HP tertahan di layar pembuka. Versi baru tetap masuk lewat
+   pembaruan service worker (berkas memakai ?v=) dan terpakai saat aplikasi dibuka berikutnya.
    Permintaan ke Supabase dan domain lain tidak disentuh. */
-const NET_WAIT = 4000;
+const cachedFor = req => req.mode === 'navigate'
+  ? caches.match(req, { ignoreSearch: true }).then(r => r || caches.match('./'))
+  : caches.match(req);
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
   const net = fetch(req).then(res => {
-    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
+    if (res.ok && !res.redirected) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
   });
-  const cached = () => caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html') : null));
   e.waitUntil(net.catch(() => {}));
-  e.respondWith(new Promise(resolve => {
-    let done = false;
-    const give = r => { if (!done && r) { done = true; resolve(r); } };
-    const tm = setTimeout(() => cached().then(give), NET_WAIT);
-    net.then(r => { clearTimeout(tm); give(r); }).catch(() => {
-      clearTimeout(tm);
-      cached().then(r => { give(r || Response.error()); });
-    });
-  }));
+  e.respondWith(cachedFor(req).then(r => r || net).catch(() => Response.error()));
 });
 
 self.addEventListener('push', e => {
