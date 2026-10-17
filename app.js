@@ -153,7 +153,7 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
 /* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
-const VERSI = '1.9';
+const VERSI = '1.10';
 let installEvt = null;
 const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
@@ -897,7 +897,9 @@ function backSteps() {
 }
 // Dipanggil setiap render: tambah atau kurangi entri riwayat agar sama dengan backSteps().
 function syncHistory() {
-  if (nav.jalan) return;
+  // Selama memuat, riwayat tidak disentuh: riwayat yang dipulihkan HP dari sesi sebelumnya
+  // bisa membuat halaman berpindah sebelum sempat tampil.
+  if (nav.jalan || ui.phase !== 'app') return;
   const want = backSteps();
   if (want < nav.pos) { nav.jalan = true; history.go(want - nav.pos); return; }
   if (want > nav.pos && navigator.userActivation?.isActive !== false) {

@@ -2,8 +2,8 @@
    - Membuat aplikasi bisa dipasang di HP dan tetap terbuka saat sinyal putus (cadangan offline).
    - Menampilkan notifikasi push saat pasangan mencatat pemasukan atau pengeluaran. */
 'use strict';
-const CACHE = 'pyojem-v10';
-const SHELL = ['./', 'index.html', 'styles.css?v=1.9', 'config.js?v=1.9', 'icons.js?v=1.9', 'data.js?v=1.9', 'app.js?v=1.9', 'manifest.webmanifest', 'vendor/supabase-2.117.2.js',
+const CACHE = 'pyojem-v11';
+const SHELL = ['./', 'index.html', 'styles.css?v=1.10', 'config.js?v=1.10', 'icons.js?v=1.10', 'data.js?v=1.10', 'app.js?v=1.10', 'manifest.webmanifest', 'vendor/supabase-2.117.2.js',
   'assets/maskot.png', 'assets/avatar-bersama.png', 'assets/ikon-192.png'];
 
 self.addEventListener('install', e => {
