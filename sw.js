@@ -2,8 +2,8 @@
    - Membuat aplikasi bisa dipasang di HP dan tetap terbuka saat sinyal putus (cadangan offline).
    - Menampilkan notifikasi push saat pasangan mencatat pemasukan atau pengeluaran. */
 'use strict';
-const CACHE = 'pyojem-v9';
-const SHELL = ['./', 'index.html', 'styles.css?v=1.8', 'config.js?v=1.8', 'icons.js?v=1.8', 'data.js?v=1.8', 'app.js?v=1.8', 'manifest.webmanifest', 'vendor/supabase-2.117.2.js',
+const CACHE = 'pyojem-v10';
+const SHELL = ['./', 'index.html', 'styles.css?v=1.9', 'config.js?v=1.9', 'icons.js?v=1.9', 'data.js?v=1.9', 'app.js?v=1.9', 'manifest.webmanifest', 'vendor/supabase-2.117.2.js',
   'assets/maskot.png', 'assets/avatar-bersama.png', 'assets/ikon-192.png'];
 
 self.addEventListener('install', e => {
@@ -13,15 +13,29 @@ self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
-/* File aplikasi: ambil versi terbaru dari jaringan dulu, pakai cadangan jika offline.
+/* File aplikasi: ambil versi terbaru dari jaringan dulu. Jika jaringan tidak menjawab dalam
+   beberapa detik (sinyal lemah atau situs lambat), pakai salinan tersimpan agar aplikasi tidak
+   tertahan di layar memuat; salinan diperbarui di latar belakang begitu jaringan menjawab.
    Permintaan ke Supabase dan domain lain tidak disentuh. */
+const NET_WAIT = 4000;
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
-  e.respondWith(fetch(req).then(res => {
+  const net = fetch(req).then(res => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
     return res;
-  }).catch(() => caches.match(req, { ignoreSearch: true }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html') : Response.error()))));
+  });
+  const cached = () => caches.match(req, { ignoreSearch: req.mode === 'navigate' }).then(r => r || (req.mode === 'navigate' ? caches.match('index.html') : null));
+  e.waitUntil(net.catch(() => {}));
+  e.respondWith(new Promise(resolve => {
+    let done = false;
+    const give = r => { if (!done && r) { done = true; resolve(r); } };
+    const tm = setTimeout(() => cached().then(give), NET_WAIT);
+    net.then(r => { clearTimeout(tm); give(r); }).catch(() => {
+      clearTimeout(tm);
+      cached().then(r => { give(r || Response.error()); });
+    });
+  }));
 });
 
 self.addEventListener('push', e => {
