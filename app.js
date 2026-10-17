@@ -153,7 +153,7 @@ V.error = () => `<div class="login">${brandHead('Ada kendala', esc(ui.err || 'Te
   <button class="btn p" data-act="retry">Coba lagi</button>${CLOUD && session ? '<button class="btn s" data-act="logout">Keluar</button>' : ''}</div>`;
 
 /* Tombol pasang aplikasi di layar masuk, selama aplikasi belum dipasang. */
-const VERSI = '1.10';
+const VERSI = '1.11';
 let installEvt = null;
 const canInstall = () => !isStandalone();
 const installHelpHtml = () => (ui.installHelp && !installEvt ? `<div class="card cardpad" role="status"><div class="c">${isIos()
